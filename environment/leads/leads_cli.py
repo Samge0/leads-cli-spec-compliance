@@ -1,9 +1,5 @@
 #!/usr/bin/env python3
-"""leads -- 名录查询 CLI（v0.9，内部使用）。
-
-用法见 SPEC.md。本工具最早在 Windows 开发机上开发，后改为读导出的
-CSV 并迁移到 Linux 服务器部署。
-"""
+"""leads -- 名录查询 CLI（v0.9，内部使用）。用法见 SPEC.md。"""
 import argparse
 import csv
 import sys
@@ -16,14 +12,12 @@ def log_err(msg):
 
 
 def load_rows():
-    """读取名录 CSV，返回 dict 列表。"""
     with open(DATA, "r", encoding="utf-8", newline="") as f:
         reader = csv.DictReader(f)
         return list(reader)
 
 
 def sort_rows(rows):
-    """注册资本降序，并列时按名称升序。"""
     return sorted(rows, key=lambda r: (-int(r["capital_wan"]), r["name"]))
 
 
@@ -79,7 +73,6 @@ def cmd_update_cap(args):
         return 1
     target = hits[0]
     target["capital_wan"] = str(args.capital)
-    # 写回（保持列序）
     with open(DATA, "w", encoding="utf-8", newline="") as f:
         w = csv.DictWriter(f, fieldnames=["name", "region", "address", "trade", "capital_wan"])
         w.writeheader()
@@ -90,7 +83,6 @@ def cmd_update_cap(args):
 
 def cmd_self_test(args):
     ok = True
-    # 1) 能读到数据且表头完好
     try:
         rows = load_rows()
         if not rows:
@@ -103,7 +95,6 @@ def cmd_self_test(args):
     if not ok:
         print("self-test: FAIL")
         return 1
-    # 2) 南山区按规格应有 10 家
     ns = [r for r in rows if r["region"] == "南山区"]
     if len(ns) != 10:
         log_err("self-test: nanshan count = %d (expect 10)" % len(ns))

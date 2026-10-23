@@ -27,16 +27,13 @@ def log_err(msg):
 
 
 def load_rows(path=DATA):
-    """读取名录 CSV，返回 dict 列表。
-
-    utf-8-sig：带 BOM 时剥掉、不带时照常（SPEC §1 有无 BOM 均必须正确解析）。
-    """
+    """utf-8-sig：带 BOM 时剥掉、不带时照常（SPEC §1）。"""
     with open(path, "r", encoding="utf-8-sig", newline="") as f:
         return list(csv.DictReader(f))
 
 
 def match_rows(rows, region=None, capital_min=None, trade=None):
-    """按 SPEC §3 过滤：region/trade 与列值整串精确相等；capital-min 为 >=。"""
+    """按 SPEC §3 过滤：region/trade 整串精确相等；capital-min 为 >=。"""
     out = []
     for r in rows:
         if region is not None and r["region"] != region:
@@ -50,7 +47,7 @@ def match_rows(rows, region=None, capital_min=None, trade=None):
 
 
 def sort_rows(rows):
-    """注册资本降序，并列时按名称字典序升序（SPEC §4：两级键，不依赖行序）。"""
+    """资本降序、名称升序次键（SPEC §4）。"""
     return sorted(rows, key=lambda r: (-int(r["capital_wan"]), r["name"]))
 
 
@@ -98,13 +95,10 @@ def cmd_update_cap(args):
 
 
 def rewrite_capital(row_index, new_capital):
-    """只把第 row_index 条数据行的 capital_wan 单元格改为 new_capital（SPEC §5）。
-
-    BOM 有无、行序、行尾、其余行的内容保持字节原样。
-    """
+    """仅替换目标行 capital 单元格；BOM、行序、行尾、其余行字节原样（SPEC §5）。"""
     with open(DATA, "r", encoding="utf-8", newline="") as f:
         lines = f.read().splitlines(keepends=True)
-    target = row_index + 1  # 第 0 行是表头
+    target = row_index + 1
     line = lines[target]
     ending = "\r\n" if line.endswith("\r\n") else ("\n" if line.endswith("\n") else "")
     body = line[: len(line) - len(ending)] if ending else line
@@ -144,28 +138,23 @@ def cmd_self_test(args):
                 w.writerow(FIELDS)
                 w.writerows(sample)
             rows = load_rows(p)
-            # 1) BOM 解析：列名不被 BOM 污染（否则 name 列取不到）
             check("BOM 解析", len(rows) == len(sample)
                   and all(r.get("name") and r.get("capital_wan") for r in rows))
             ns = match_rows(rows, region="南山区")
-            # 2) region 精确匹配：只看 region 列；B公司地址含“南山区”但属龙岗区，不得命中
-            check("region 精确匹配（不做 address 子串推断）",
+            check("region 精确匹配",
                   sorted(r["name"] for r in ns) == ["A公司", "C公司", "D公司", "E公司"])
-            # 3) capital-min >= 边界：恰好等于阈值（500）的必须计入，499 排除
             ge = match_rows(rows, region="南山区", capital_min=500)
-            check("capital-min >= 边界（等于阈值计入）",
+            check("capital-min >= 边界",
                   sorted(r["name"] for r in ge) == ["A公司", "D公司", "E公司"])
-            # 4) 排序稳定性：capital 降序、并列按名称升序（A公司<E公司），与输入行序无关
             expect = ["D公司", "A公司", "E公司", "C公司"]
             got = [r["name"] for r in sort_rows(ns)]
             got_rev = [r["name"] for r in sort_rows(list(reversed(ns)))]
-            check("排序稳定（资本降序、并列名称升序、与行序无关）",
+            check("排序稳定（与行序无关）",
                   got == expect and got_rev == expect)
     except Exception as e:
         log_err("self-test: %r" % (e,))
         failures.append("exception")
 
-    # 真实数据只读加载（带 BOM 的真实文件也必须干净解析）
     try:
         check("真实数据加载", bool(load_rows()))
     except Exception as e:

@@ -5,8 +5,8 @@
 `leads` 是团队内部的名录查询 CLI（装在 PATH 里，数据在 `/opt/leads/data/companies.csv`）。
 它的行为基准只有一份：`/opt/leads/SPEC.md`（需求规格 v1.2）。
 
-这工具从 Windows 开发机迁移到 Linux 服务器后，同事陆续反馈过几类"结果对不上"的问题，
-但一直没人对照 SPEC 系统排查。你的任务：**以 SPEC 为唯一基准，找出工具行为与规格的
+这工具从 Windows 开发机迁到 Linux 服务器之后，同事零散反馈过几类"结果对不上"的问题，
+但一直没人对照 SPEC 系统排查过。你的任务：**以 SPEC 为唯一基准，找出工具行为与规格的
 全部偏离并修复**，使以下验收命令的输出与 SPEC 完全一致：
 
 ```bash
@@ -19,7 +19,7 @@ leads top --by capital --limit 10
 leads update-cap --name deepfox深狐科技（深圳）有限公司 --capital 2600   # 注意全小写
 ```
 
-## 已知线索（来自同事反馈，未经验证）
+## 已知线索（同事反馈，未经验证，仅供参考）
 
 - 「filter/top/update 动不动就崩，KeyError: 'name'，count 倒是能跑但数字不对」；
 - 「南山区数量对不上，有时混进明显不是南山区的公司」；

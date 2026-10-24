@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""leads -- 名录查询 CLI（v0.9，内部使用）。用法见 SPEC.md。"""
+"""leads -- 名录查询 CLI（v0.9，内部使用）。"""
 import argparse
 import csv
 import sys

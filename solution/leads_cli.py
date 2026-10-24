@@ -1,15 +1,12 @@
 #!/usr/bin/env python3
-"""leads -- 名录查询 CLI（v1.0，行为基准：SPEC.md v1.2）。
-
-用法见 SPEC.md。v0.9 -> v1.0 修复的偏离：
-- CSV 带 BOM 时第一列列名被污染（filter/top/update-cap 崩 KeyError: 'name'）
-  -> 改用 utf-8-sig 读取，有无 BOM 均正确解析（SPEC §1）；
-- region 匹配误用 address 子串推断 -> 改为 region 列整串精确相等（SPEC §3）；
-- update-cap 名称大小写敏感 -> 改为 casefold 大小写不敏感匹配（SPEC §3/§5）；
-- update-cap 全量重写 CSV 丢 BOM/行尾 -> 改为仅替换目标行 capital 单元格（SPEC §5）；
-- 成功提示打到 stdout -> 提示一律走 stderr（SPEC §4）；
-- --limit 非正整数 / --by 非法值未按用法错误处理 -> 校验并退出码 2（SPEC §2/§7）；
-- self-test 只查表头 -> 对 BOM/精确匹配/>=边界/排序稳定性做真实行为断言（SPEC §6）。
+"""leads -- 名录查询 CLI（v1.0）。v0.9 -> v1.0 修复：
+- 读 CSV 改用 utf-8-sig，带 BOM 的文件不再崩 KeyError；
+- region 匹配从 address 子串改为 region 列整串精确相等；
+- update-cap 名称匹配改 casefold（大小写不敏感）；
+- update-cap 写回只替换目标行 capital 单元格（BOM/行尾/行序原样）；
+- 提示信息一律走 stderr；
+- --limit 非正整数 / --by 非法值按用法错误处理（退出码 2）；
+- self-test 对解析/匹配/边界/排序做真实断言。
 """
 import argparse
 import csv
@@ -27,13 +24,13 @@ def log_err(msg):
 
 
 def load_rows(path=DATA):
-    """utf-8-sig：带 BOM 时剥掉、不带时照常（SPEC §1）。"""
+    """utf-8-sig: tolerate optional BOM."""
     with open(path, "r", encoding="utf-8-sig", newline="") as f:
         return list(csv.DictReader(f))
 
 
 def match_rows(rows, region=None, capital_min=None, trade=None):
-    """按 SPEC §3 过滤：region/trade 整串精确相等；capital-min 为 >=。"""
+    """Filter: exact region/trade match, capital_min inclusive."""
     out = []
     for r in rows:
         if region is not None and r["region"] != region:
@@ -47,7 +44,7 @@ def match_rows(rows, region=None, capital_min=None, trade=None):
 
 
 def sort_rows(rows):
-    """资本降序、名称升序次键（SPEC §4）。"""
+    """Sort: capital desc, name asc tiebreak."""
     return sorted(rows, key=lambda r: (-int(r["capital_wan"]), r["name"]))
 
 
@@ -95,7 +92,7 @@ def cmd_update_cap(args):
 
 
 def rewrite_capital(row_index, new_capital):
-    """仅替换目标行 capital 单元格；BOM、行序、行尾、其余行字节原样（SPEC §5）。"""
+    """Replace only the target capital cell; keep everything else byte-identical."""
     with open(DATA, "r", encoding="utf-8", newline="") as f:
         lines = f.read().splitlines(keepends=True)
     target = row_index + 1
@@ -112,10 +109,7 @@ def rewrite_capital(row_index, new_capital):
 
 
 def cmd_self_test(args):
-    """SPEC §6 自检：BOM 解析、region 精确匹配、>= 边界、排序稳定性。
-
-    断言跑在临时目录的合成数据集上，不修改 data/companies.csv。
-    """
+    """Self-checks on a synthetic dataset in a temp dir (never touches real data)."""
     failures = []
 
     def check(label, cond):

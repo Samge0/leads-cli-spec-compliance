@@ -1,7 +1,9 @@
 #!/bin/bash
-# 判分入口：逐测试点执行（与 pytest 同一批断言，仅基础 assert）-> 加权求和写 reward.txt
-# reward = Σ(测试点通过 × 权重)，权重与 test_outputs.py 注释一致（附件 test weight 说明）：
-#   T1=18 T2=22 T3=18 T4=13 T5=18 T6=11（百分点，合计 100）
+# 判分入口：先跑硬性门槛（T0）-> 逐测试点加权求和 -> 写 reward.txt
+# reward = 门槛 ? 0 : Σ(测试点通过 × 权重)，权重与 test_outputs.py 注释一致
+# （附件 test weight 说明）：T1=18 T2=22 T3=18 T4=13 T5=18 T6=11（合计 100）。
+# T0 硬性门槛（weight 0）：不可变资产完整性（SPEC/包装脚本 md5、数据文件
+# 除目标行 capital 外逐字节原样）。失败 = 改动了评测基准本身 -> 直接清零。
 # 装依赖失败/runner 崩溃/任何异常路径都必须写入 0（QA 3.5），不缺写、不沿用旧值。
 # 逐函数直跑不依赖 pytest（模块级 test_* 函数 unittest discover 收不到），
 # 也不依赖在线 pip——判分现场零装配，测试执行方式在 test.sh 内自含解决。
@@ -17,6 +19,7 @@ import importlib.util
 import sys
 import traceback
 
+GATE = "test_t0_immutable_assets"
 WEIGHTS = {
     "test_t1_bom_tolerant": 18,
     "test_t2_region_exact_match": 22,
@@ -30,6 +33,21 @@ spec = importlib.util.spec_from_file_location("verifier_tests", "/tests/test_out
 mod = importlib.util.module_from_spec(spec)
 spec.loader.exec_module(mod)
 
+# 1) 硬性门槛先行：失败 -> reward 直接 0（后续行为测试失去意义，跳过）
+gate_fn = getattr(mod, GATE, None)
+if gate_fn is None:
+    print("MISS %s" % GATE)
+    print("reward = 0/100")
+    sys.exit(0)
+try:
+    gate_fn()
+    print("PASS %-44s (gate)" % GATE)
+except Exception:
+    print("FAIL %-44s (gate) -> reward = 0" % GATE)
+    traceback.print_exc()
+    sys.exit(0)
+
+# 2) 行为测试点加权
 total = 0
 for name, weight in sorted(WEIGHTS.items()):
     fn = getattr(mod, name, None)

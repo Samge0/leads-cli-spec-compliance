@@ -235,3 +235,47 @@ def test_t6_self_test_reflects_behavior():
     code, out, err = _run(["self-test"])
     assert code == 0, "self-test exit %s, stderr=%s" % (code, err)
     assert "PASS" in out, "self-test did not print PASS, stdout=%r" % out
+
+
+if __name__ == "__main__":
+    import sys
+
+    REWARD = "/logs/verifier/reward.txt"
+    GATE = "test_t0_immutable_assets"
+    WEIGHTS = {
+        "test_t1_bom_tolerant": 18,
+        "test_t2_region_exact_match": 22,
+        "test_t3_capital_min_inclusive": 18,
+        "test_t4_sort_tiebreak": 13,
+        "test_t5_update_cap_case_insensitive_and_safe": 18,
+        "test_t6_self_test_reflects_behavior": 11,
+    }
+
+    def write_reward(v):
+        with open(REWARD, "w") as f:
+            f.write(v)
+
+    import os, traceback
+    os.makedirs("/logs/verifier", exist_ok=True)
+    total = 0
+    try:
+        globals()[GATE]()
+        print("gate PASS")
+    except Exception:
+        print("gate FAIL -> reward 0")
+        traceback.print_exc()
+        write_reward("0.00")
+        sys.exit(0)
+
+    for name, weight in sorted(WEIGHTS.items()):
+        try:
+            globals()[name]()
+            total += weight
+            print("PASS %s +%d" % (name, weight))
+        except Exception:
+            print("FAIL %s +0" % name)
+            traceback.print_exc()
+
+    print("reward = %d/100" % total)
+    write_reward("%.2f" % (total / 100.0))
+    sys.exit(0)

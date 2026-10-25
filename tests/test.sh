@@ -1,6 +1,15 @@
 #!/bin/bash
 # Weighted verifier: reward = gate ? 0 : sum(pass_i * w_i), weights in percent:
 # T1=18 T2=22 T3=18 T4=13 T5=18 T6=11 (total 100).
+# Weight rationale (assignment basis, per test-weight guideline):
+#   T2=22 highest -- region exact-match is the core semantic deviation of the task
+#     (substring matching on address pollutes both count and filter);
+#   T1=18, T3=18, T5=18 -- each an independent user-visible correctness behavior
+#     (BOM-tolerant parsing / inclusive capital-min bound / case-insensitive safe update);
+#   T4=13, T6=11 -- supporting behaviors (deterministic tiebreak, self-check);
+#     combined 24% < 40% so partial fixes cannot score high via side items alone.
+# No bonus/cap/zero-out rules: every point maps to a SPEC-necessary behavior,
+# there is no advanced space beyond the acceptance contract.
 # T0 is a zero-weight gate (immutable assets). Any runner crash writes 0.
 set -uo pipefail
 REWARD_FILE="/logs/verifier/reward.txt"

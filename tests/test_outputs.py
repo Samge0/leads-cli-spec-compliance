@@ -1,6 +1,5 @@
 #!/usr/bin/env python3
-"""Verifier for the leads CLI task. Expected values are computed from an
-embedded baseline of the original data file, never from the tool under test."""
+"""Verifier for the leads CLI task."""
 import base64
 import csv
 import hashlib
@@ -142,7 +141,6 @@ def _parse_out(stdout):
 
 
 def _current_rows():
-    """Baseline rows with the target row's capital replaced by its on-disk value."""
     rows = [dict(r) for r in _ROWS]
     try:
         with open(DATA, "rb") as f:

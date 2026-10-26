@@ -2,9 +2,8 @@ FROM python:3.12-slim-bookworm
 
 ENV DEBIAN_FRONTEND=noninteractive
 
-RUN apt-get update && apt-get install -y --no-install-recommends \
-    procps \
-    && rm -rf /var/lib/apt/lists/*
+# No network operations during build: python3/bash/sh from the base image
+# cover everything this task needs (stdlib-only CLI, stdlib-only verifier).
 
 COPY leads/ /opt/leads/
 

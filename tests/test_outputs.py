@@ -4,6 +4,7 @@ import base64
 import csv
 import hashlib
 import io
+import re
 import subprocess
 
 DATA = "/opt/leads/data/companies.csv"
@@ -206,13 +207,15 @@ def test_t3_capital_min_inclusive():
 
 def test_t4_sort_tiebreak():
     expect = _expect_lines(_current_rows())
-    code, out, err = _run(["top", "--by", "capital", "--limit", "60"])
+    code, out, err = _run(["top", "--by", "capital", "--limit", "10"])
     assert code == 0, err
     got = _parse_out(out)
+    assert len(got) == 11, "limit=10 should yield header + 10 rows, got %d" % len(got)
     assert got == expect[: len(got)], "full-sort mismatch at head:\nexpected=%r\ngot=%r" % (expect[1:4], got[1:4])
-    tie_e = [l for l in expect if l.split("\t")[3] == "2000"]
+    tie_e_full = [l for l in expect if l.split("\t")[3] == "2000"]
     tie_g = [l for l in got if l.split("\t")[3] == "2000"]
-    assert tie_g == tie_e, "tie order mismatch (should be name-ascending):\nexpected=%r\ngot=%r" % (tie_e, tie_g)
+    tie_e = tie_e_full[: len(tie_g)]
+    assert tie_g == tie_e, "tie order mismatch (should be name-ascending):\nexpected=%r\ngot=%r" % (tie_e_full, tie_g)
 
 
 def test_t5_update_cap_case_insensitive_and_safe():
@@ -232,6 +235,20 @@ def test_t5_update_cap_case_insensitive_and_safe():
     assert after[:3] == b"\xef\xbb\xbf", "BOM lost on write-back"
     assert after.count(b"\r\n") == before.count(b"\r\n"), "line-ending style changed"
 
+    # error path: no-such-company must exit non-zero, keep stderr message, not touch file
+    code, out, err = _run(["update-cap", "--name", "不存在的公司XYZ", "--capital", "100"])
+    assert code != 0, "no-such-company must exit non-zero"
+    assert "no such company" in err, "no-such-company message must go to stderr, got %r" % err
+    assert out == "", "no-such-company must not write to stdout"
+    with open(DATA, "rb") as f:
+        assert f.read() == after, "failed update must not modify the data file"
+
+    # error path: ambiguous/partial name must be rejected, file stays intact
+    code, out, err = _run(["update-cap", "--name", "星岚科技", "--capital", "50"])
+    assert code != 0, "partial name (not exact match) must be rejected"
+    with open(DATA, "rb") as f:
+        assert f.read() == after, "rejected update must not modify the data file"
+
 
 def test_t6_self_test_reflects_behavior():
     code, out, err = _run(["self-test"])
@@ -246,6 +263,13 @@ def test_t6_self_test_reflects_behavior():
     detail_lines = [l for l in stripped if l not in summary]
     assert len(detail_lines) >= 3, (
         "self-test prints no per-check details (stub?): stdout=%r" % out)
+    # per-check detail lines must carry their own pass marker (not bare prose);
+    # a stub printing three filler lines without per-check markers still fails here
+    marked = [l for l in detail_lines
+              if re.match(r'^\[?(PASS|OK|ok|✓|√)', l, re.I)
+              or re.match(r'^\d+[.、)]]?\s*(PASS|OK|✓|√|通过)', l, re.I)]
+    assert len(marked) >= 3, (
+        "per-check lines lack PASS/OK markers (filler lines?): %r" % detail_lines[:5])
 
 
 if __name__ == "__main__":

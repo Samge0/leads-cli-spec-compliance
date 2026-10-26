@@ -6,7 +6,7 @@ authors = [{ name = "Samge0", email = "samge720@gmail.com" }]
 description = "名录查询 CLI 的行为修复：原始需求文档已丢失，依据源码、数据与同事反馈排查并修复工具的全部行为偏离（含边界语义、排序确定性等验收口径要求）。"
 
 [agent]
-timeout_sec = 1200
+timeout_sec = 900
 
 [environment]
 build_timeout_sec = 600.0

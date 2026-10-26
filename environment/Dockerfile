@@ -14,4 +14,7 @@ WORKDIR /opt/leads
 RUN echo '#!/bin/sh\nexec python3 /opt/leads/leads_cli.py "$@"' > /usr/local/bin/leads \
     && chmod +x /usr/local/bin/leads
 
+# Pre-create log dirs expected by the harness (oracle/verifier redirects here)
+RUN mkdir -p /logs/agent /logs/verifier
+
 CMD ["/bin/bash"]

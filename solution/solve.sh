@@ -212,8 +212,8 @@ def main():
 if __name__ == "__main__":
     sys.exit(main())
 PYEOF
-chmod +x "$LEADS_DIR/leads_cli.py"
-rm -rf "$LEADS_DIR/__pycache__"
+chmod +x "$LEADS_DIR/leads_cli.py" 2>/dev/null || true
+rm -rf "$LEADS_DIR/__pycache__" 2>/dev/null || true
 
 cd "$LEADS_DIR"
 echo "[solve] self-test:"

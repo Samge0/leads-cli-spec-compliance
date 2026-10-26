@@ -14,6 +14,13 @@ RUN echo '#!/bin/sh\nexec python3 /opt/leads/leads_cli.py "$@"' > /usr/local/bin
     && chmod +x /usr/local/bin/leads
 
 # Pre-create log dirs expected by the harness (oracle/verifier redirects here)
-RUN mkdir -p /logs/agent /logs/verifier
+# and make them writable by any user the harness might run as.
+RUN mkdir -p /logs/agent /logs/verifier \
+    && chmod 777 /logs /logs/agent /logs/verifier
+
+# The working tree must stay writable even if the harness runs the agent,
+# solution or verifier as a non-root user.
+RUN chmod -R a+rwX /opt/leads \
+    && chmod a+rx /solution 2>/dev/null || true
 
 CMD ["/bin/bash"]

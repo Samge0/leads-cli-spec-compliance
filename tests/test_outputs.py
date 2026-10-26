@@ -185,6 +185,21 @@ def test_t1_bom_tolerant():
     assert code == 0, "count exit %s, stderr=%s" % (code, err)
     assert out.strip() == "10", "count=%r, expected 10" % out.strip()
 
+    # no-BOM variant: the tool must parse identically without the BOM
+    with open(DATA, "rb") as f:
+        saved = f.read()
+    try:
+        with open(DATA, "wb") as f:
+            f.write(saved[3:])
+        code, out, err = _run(["count", "--region", "南山区"])
+        assert code == 0, "count (no BOM) exit %s, stderr=%s" % (code, err)
+        assert out.strip() == "10", "count (no BOM)=%r, expected 10" % out.strip()
+    finally:
+        with open(DATA, "wb") as f:
+            f.write(saved)
+    with open(DATA, "rb") as f:
+        assert f.read() == saved, "no-BOM probe did not restore the data file"
+
 
 def test_t2_region_exact_match():
     expect = _expect_lines([r for r in _ROWS if r["region"] == "南山区"])[:4]
@@ -235,6 +250,11 @@ def test_t5_update_cap_case_insensitive_and_safe():
     assert after[:3] == b"\xef\xbb\xbf", "BOM lost on write-back"
     assert after.count(b"\r\n") == before.count(b"\r\n"), "line-ending style changed"
 
+    # success-path output contract: stdout stays clean, status goes to stderr
+    assert out == "", "success update must keep stdout clean, got %r" % out
+    assert "updated" in err and "DeepFox深狐科技（深圳）有限公司" in err, (
+        "stderr must carry the update confirmation: %r" % err)
+
     # error path: no-such-company must exit non-zero, keep stderr message, not touch file
     code, out, err = _run(["update-cap", "--name", "不存在的公司XYZ", "--capital", "100"])
     assert code != 0, "no-such-company must exit non-zero"
@@ -243,7 +263,7 @@ def test_t5_update_cap_case_insensitive_and_safe():
     with open(DATA, "rb") as f:
         assert f.read() == after, "failed update must not modify the data file"
 
-    # error path: ambiguous/partial name must be rejected, file stays intact
+    # error path: partial name must be rejected (full-field exact match only)
     code, out, err = _run(["update-cap", "--name", "星岚科技", "--capital", "50"])
     assert code != 0, "partial name (not exact match) must be rejected"
     with open(DATA, "rb") as f:
@@ -270,6 +290,13 @@ def test_t6_self_test_reflects_behavior():
               or re.match(r'^\d+[.、)]]?\s*(PASS|OK|✓|√|通过)', l, re.I)]
     assert len(marked) >= 3, (
         "per-check lines lack PASS/OK markers (filler lines?): %r" % detail_lines[:5])
+    # details must reference the actual behaviors under check — a real self-test
+    # describes what it verified; hardcoded filler lines don't
+    domains = [kw for kw in ("BOM", "解析", "region", "区名", "匹配", "500", "边界",
+                             "排序", "update", "写回", "编码")
+               if any(kw in l for l in detail_lines)]
+    assert len(domains) >= 3, (
+        "self-test details cover fewer than 3 behavior domains: %r" % detail_lines[:5])
 
 
 if __name__ == "__main__":
